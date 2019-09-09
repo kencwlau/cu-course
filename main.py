@@ -1,8 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
-
-
-
+from dotenv import load_dotenv
+import os
 
 class CusisClient:
     username = ''
@@ -15,6 +14,8 @@ class CusisClient:
     courseQueryAPI = 'https://cusis.cuhk.edu.hk/psc/csprd/EMPLOYEE/HRMS/c/CU_SCR_MENU.CU_TMSR801.GBL'
 
     def __init__(self):
+        self.username = os.getenv("STUDENT_ID")
+        self.password = os.getenv("PASSWORD")
         self.session = requests.session()
         self.session.headers.update(self.header)
 
@@ -94,9 +95,8 @@ class CusisClient:
         self.formInput = dict(map(lambda input: (input.get('name'), input.get('value')), inputList))
 
 if __name__ == '__main__':
+    load_dotenv()
     client = CusisClient()
-
     if client.login():
         client.initQuery()
         client.getFacultyList()
-        
