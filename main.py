@@ -44,16 +44,23 @@ class CusisClient:
     def initQuery(self):
         self.query(self.courseQueryAPI, {})
 
-    def getAcademicYear(self):
-        data = {
-            'ICAction': '#ICCancel',
-        }
-
-
+    def getAcademicCareer(self):
+        key = ['code', 'name']
+        data = {}
+        
         response = self.query(self.courseQueryAPI, data)
-        print(response.text)
+        return self.parseSelect(response, key, 'CLASS_SRCH_WRK2_ACAD_CAREER')
+        
 
+    def getAcademicYear(self):
+        key = ['code', 'name']
+        data = {}
+        
+        response = self.query(self.courseQueryAPI, data)
+        return self.parseSelect(response, key, 'CLASS_SRCH_WRK2_STRM$50$')
+        
     def getFacultyList(self):
+        key = ['code', 'name']
         data = {
             'ICAction': 'CU_RC_TMSR801_SUBJECT$prompt',
         }
@@ -62,26 +69,18 @@ class CusisClient:
             'ICAction': '#ICViewAll',
         }
         response = self.query(self.courseQueryAPI, data)
-        soup = BeautifulSoup(response.text)
-        data = soup.find_all('tr')[3:]
-        getColumnContent = lambda column: column
-        getRowContent = lambda row: list(map(getColumnContent, row))
-        
-        print(list(map(getRowContent, data)))
+        return self.parseTable(response, key)
 
-        print('Fac List')
-        # print(response.text)
-
-    def getCourseList(self):
+    def getCourseList(self, career, semester, subject):
+        key = ['code', 'id', 'title', 'unit', 'staff', 'quota', 'vacancy', 'type', 'session', 'language', 'period', 'room', 'date', 'addConsent', 'dropConsent', 'department']
         data = {
             'ICAction':'CU_RC_TMSR801_SSR_PB_CLASS_SRCH',
-            'CLASS_SRCH_WRK2_ACAD_CAREER':'UG',
-            'CLASS_SRCH_WRK2_STRM$50$': 2110,
-            'CU_RC_TMSR801_SUBJECT': 'ACCT'
+            'CLASS_SRCH_WRK2_ACAD_CAREER': career,
+            'CLASS_SRCH_WRK2_STRM$50$': semester,
+            'CU_RC_TMSR801_SUBJECT': subject,
         }
         response = self.query(self.courseQueryAPI, data)
-        print('Course List')
-        print(response.text)
+        return self.parseTable(response, key)
 
     def query(self, url, data):
         data = {**self.formInput, **data}
@@ -93,10 +92,25 @@ class CusisClient:
         soup = BeautifulSoup(response.text)
         inputList = soup.find_all('input', attrs={'type': 'hidden'})
         self.formInput = dict(map(lambda input: (input.get('name'), input.get('value')), inputList))
+    
+    def parseTable(self, response, key):
+        soup = BeautifulSoup(response.text)
+        data = soup.find_all('tr')
+        result = [[column.text.strip() for column in row.select('td[class $= "ROW"]')] for row in data]
+        return [dict(zip(key, row)) for row in result if len(row) > 0]
+    
+    def parseSelect(self, response, key, name):
+        soup = BeautifulSoup(response.text)
+        data = soup.find('select', attrs={'name': name}).find_all('option')
+        result = [[row.get('value'), row.text.strip()] for row in data if row.get('value')]
+        return [dict(zip(key, row)) for row in result]
+
+        
 
 if __name__ == '__main__':
     load_dotenv()
     client = CusisClient()
     if client.login():
         client.initQuery()
-        client.getFacultyList()
+        print(client.getFacultyList())
+        # print(client.getCourseList('UG', 2110, 'IERG'))
