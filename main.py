@@ -130,6 +130,10 @@ class CusisClient:
 if __name__ == '__main__':
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     load_dotenv()
+
+    if not os.path.isdir('output'):
+        os.makedirs('output')
+
     client = CusisClient()
     if client.login():
         client.initQuery()
@@ -140,5 +144,5 @@ if __name__ == '__main__':
             with open('output/%s.json' % faculty['code'], 'w') as outfile:
                 courseList = client.getCourseList('UG', 2110, faculty['code'])
                 json.dump(courseList, outfile)
-            break
+
         client.logout()
