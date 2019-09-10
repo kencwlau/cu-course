@@ -2,6 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import os
+import json
+import urllib3
 
 class CusisClient:
     username = ''
@@ -28,21 +30,20 @@ class CusisClient:
         response = self.session.post(url, data=data, verify=False)
 
         if 'tab=DEFAULT' in response.text:
+            print('Logged in')
             return True
         else:
-            print('login')
+            print('Login failed')
             print(response.text)
             return False
 
     def logout(self):
-        pass
-
+        url = 'https://cusis.cuhk.edu.hk/psp/csprd/EMPLOYEE/HRMS/?cmd=logout'
+        self.session.get(url)
 
     def isLoggedIn(self):
         pass
 
-    def initQuery(self):
-        self.query(self.courseQueryAPI, {})
 
     def getAcademicCareer(self):
         key = ['code', 'name']
@@ -50,7 +51,6 @@ class CusisClient:
         
         response = self.query(self.courseQueryAPI, data)
         return self.parseSelect(response, key, 'CLASS_SRCH_WRK2_ACAD_CAREER')
-        
 
     def getAcademicYear(self):
         key = ['code', 'name']
@@ -69,7 +69,9 @@ class CusisClient:
             'ICAction': '#ICViewAll',
         }
         response = self.query(self.courseQueryAPI, data)
-        return self.parseTable(response, key)
+        result = self.parseTable(response, key)
+        self.resetQuery()
+        return result
 
     def getCourseList(self, career, semester, subject):
         key = ['code', 'id', 'title', 'unit', 'staff', 'quota', 'vacancy', 'type', 'session', 'language', 'period', 'room', 'date', 'addConsent', 'dropConsent', 'department']
@@ -80,21 +82,39 @@ class CusisClient:
             'CU_RC_TMSR801_SUBJECT': subject,
         }
         response = self.query(self.courseQueryAPI, data)
-        return self.parseTable(response, key)
+        result = self.parseTable(response, key)
+        self.newQuery()
+        return result
 
     def query(self, url, data):
         data = {**self.formInput, **data}
+        print(data)
         response = self.session.post(url, data=data, verify=False)
         self.updateFormData(response)
         return response
 
+    def initQuery(self):
+        self.query(self.courseQueryAPI, {})
+    
+    def resetQuery(self):
+        data = {
+            'ICAction': '#ICCancel'
+        }
+        self.query(self.courseQueryAPI, data)
+
+    def newQuery(self):
+        data = {
+            'ICAction': 'CU_RC_TMSR801_SSR_PB_NEW_SEARCH'
+        }
+        self.query(self.courseQueryAPI, data)
+
     def updateFormData(self, response):
-        soup = BeautifulSoup(response.text)
+        soup = BeautifulSoup(response.text, 'html.parser')
         inputList = soup.find_all('input', attrs={'type': 'hidden'})
         self.formInput = dict(map(lambda input: (input.get('name'), input.get('value')), inputList))
-    
+
     def parseTable(self, response, key):
-        soup = BeautifulSoup(response.text)
+        soup = BeautifulSoup(response.text, 'html.parser')
         data = soup.find_all('tr')
         result = [[column.text.strip() for column in row.select('td[class $= "ROW"]')] for row in data]
         return [dict(zip(key, row)) for row in result if len(row) > 0]
@@ -105,12 +125,25 @@ class CusisClient:
         result = [[row.get('value'), row.text.strip()] for row in data if row.get('value')]
         return [dict(zip(key, row)) for row in result]
 
-        
-
 if __name__ == '__main__':
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     load_dotenv()
     client = CusisClient()
     if client.login():
         client.initQuery()
-        print(client.getFacultyList())
-        # print(client.getCourseList('UG', 2110, 'IERG'))
+        facultyList = client.getFacultyList()
+        print(facultyList)
+        courseList = client.getCourseList('UG', 2110, 'ACCT')
+        print(courseList)
+        courseList = client.getCourseList('UG', 2110, 'MATH')
+        print(courseList)
+        '''
+        with open('faculty.json', 'w') as outfile:
+            json.dump(facultyList, outfile)
+        for faculty in facultyList:
+            with open('%s.json' % faculty['code'], 'w') as outfile:
+                courseList = client.getCourseList('UG', 2110, faculty['code'])
+                json.dump(facultyList, outfile)
+                break
+        '''
+        client.logout()
