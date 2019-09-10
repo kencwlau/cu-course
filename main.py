@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import json
 import urllib3
+import time
 
 class CusisClient:
     username = ''
@@ -89,6 +90,7 @@ class CusisClient:
     def query(self, url, data):
         data = {**self.formInput, **data}
         print(data)
+        time.sleep(0.5)
         response = self.session.post(url, data=data, verify=False)
         self.updateFormData(response)
         return response
@@ -132,18 +134,11 @@ if __name__ == '__main__':
     if client.login():
         client.initQuery()
         facultyList = client.getFacultyList()
-        print(facultyList)
-        courseList = client.getCourseList('UG', 2110, 'ACCT')
-        print(courseList)
-        courseList = client.getCourseList('UG', 2110, 'MATH')
-        print(courseList)
-        '''
-        with open('faculty.json', 'w') as outfile:
+        with open('output/faculty.json', 'w') as outfile:
             json.dump(facultyList, outfile)
         for faculty in facultyList:
-            with open('%s.json' % faculty['code'], 'w') as outfile:
+            with open('output/%s.json' % faculty['code'], 'w') as outfile:
                 courseList = client.getCourseList('UG', 2110, faculty['code'])
-                json.dump(facultyList, outfile)
-                break
-        '''
+                json.dump(courseList, outfile)
+            break
         client.logout()
