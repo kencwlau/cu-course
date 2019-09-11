@@ -117,9 +117,10 @@ class CusisClient:
 
     def parseTable(self, response, key):
         soup = BeautifulSoup(response.text, 'html.parser')
-        data = soup.find_all('tr')
-        result = [[column.text.strip() for column in row.select('td[class $= "ROW"]')] for row in data]
-        return [dict(zip(key, row)) for row in result if len(row) > 0]
+        data = soup.select('tr')
+        headerLength = len(soup.select('th'))
+        result = [[column.text.strip() for column in row.select('tr > td[class $= "ROW"]')] for row in data]
+        return [dict(zip(key, row)) for row in result if len(row) == headerLength]
     
     def parseSelect(self, response, key, name):
         soup = BeautifulSoup(response.text)
